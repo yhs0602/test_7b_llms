@@ -4,11 +4,11 @@ from transformers import AutoTokenizer, TextStreamer
 
 
 class BgColors:
-    USER_PROMPT = '\033[44m'  # Blue background
-    LLM_OUTPUT = '\033[42m'  # Green background
-    RESET = '\033[0m'  # Reset to default
-    BLUE = '\033[34m' # Blue text
-    GREEN = '\033[32m' # Green text
+    USER_PROMPT = "\033[44m"  # Blue background
+    LLM_OUTPUT = "\033[42m"  # Green background
+    RESET = "\033[0m"  # Reset to default
+    BLUE = "\033[34m"  # Blue text
+    GREEN = "\033[32m"  # Green text
 
 
 model_name_or_path = "TheBloke/Starling-LM-7B-alpha-AWQ"
@@ -31,10 +31,13 @@ def generate_response(tokenizer, model, prompt):
 
 
 def main():
-    model = AutoAWQForCausalLM.from_quantized(model_name_or_path, fuse_layers=True,
-                                              trust_remote_code=False, safetensors=True)
+    model = AutoAWQForCausalLM.from_quantized(
+        model_name_or_path, fuse_layers=True, trust_remote_code=False, safetensors=True
+    )
     model.to(device)
-    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=False)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name_or_path, trust_remote_code=False
+    )
     messages = [
         # {"role": "User", "content": "What is your favourite condiment?"},
         # {"role": "Assistant",
@@ -57,14 +60,18 @@ def main():
         # Step 2. Add the prompt to the conversation
         messages.append({"role": "User", "content": prompt})
         # Step 3. Generate
-        encodeds = tokenizer.apply_chat_template(messages, return_tensors="pt", add_generation_prompt=True)
+        encodeds = tokenizer.apply_chat_template(
+            messages, return_tensors="pt", add_generation_prompt=True
+        )
         token_count = encodeds.size(1)
         # Remove oldest messages if token limit is exceeded
         while token_count > max_tokens and messages:
             messages.pop(0)
             messages.pop(0)
             # Conversation roles must alternate user/assistant/user/assistant/...
-            encodeds = tokenizer.apply_chat_template(messages, return_tensors="pt", add_generation_prompt=True)
+            encodeds = tokenizer.apply_chat_template(
+                messages, return_tensors="pt", add_generation_prompt=True
+            )
             token_count = encodeds.size(1)
 
         streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
@@ -86,7 +93,9 @@ def main():
         # print(sayings)
         sayings = [saying for saying in sayings if saying.strip()]
         chatbot_final_output = sayings[-1]
-        chatbot_final_output = chatbot_final_output.replace(" GPT4 Correct Assistant: ", "")
+        chatbot_final_output = chatbot_final_output.replace(
+            " GPT4 Correct Assistant: ", ""
+        )
         # Free memory
         del model_inputs
         torch.cuda.empty_cache()
@@ -97,5 +106,5 @@ def main():
         messages.append({"role": "Assistant", "content": chatbot_final_output})
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -2,8 +2,12 @@ import transformers
 
 device = "cuda"
 
-tokenizer = transformers.AutoTokenizer.from_pretrained("berkeley-nest/Starling-LM-7B-alpha")
-model = transformers.AutoModelForCausalLM.from_pretrained("berkeley-nest/Starling-LM-7B-alpha")
+tokenizer = transformers.AutoTokenizer.from_pretrained(
+    "berkeley-nest/Starling-LM-7B-alpha"
+)
+model = transformers.AutoModelForCausalLM.from_pretrained(
+    "berkeley-nest/Starling-LM-7B-alpha"
+)
 
 
 # model.to(device) OOM
@@ -22,10 +26,12 @@ def generate_response(prompt):
     return response_text
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Single-turn conversation
     prompt = "Hello, how are you?"
-    single_turn_prompt = f"GPT4 Correct User: {prompt}<|end_of_turn|>GPT4 Correct Assistant:"
+    single_turn_prompt = (
+        f"GPT4 Correct User: {prompt}<|end_of_turn|>GPT4 Correct Assistant:"
+    )
     response_text = generate_response(single_turn_prompt)
     print("Response:", response_text)
 
