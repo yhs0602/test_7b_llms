@@ -25,7 +25,7 @@ def index():
 
 
 # chat completion
-@app.route("/v1//chat/completions", methods=["POST", "GET"])
+@app.route("/v1/chat/completions", methods=["POST", "GET"])
 @app.route("/chat/completions", methods=["POST"])
 def chat_completion():
     print("got request for chat completion")
@@ -38,6 +38,7 @@ def chat_completion():
     # "num_retries": 2,
     # "request_timeout": 10
     messages = data["messages"]
+    stream = data["stream"]
     encodeds = tokenizer.apply_chat_template(
         messages, return_tensors="pt", add_generation_prompt=True
     )
@@ -59,7 +60,7 @@ def chat_completion():
     chatbot_final_output = chatbot_final_output.replace(" GPT4 Correct Assistant: ", "")
     del model_inputs
     torch.cuda.empty_cache()
-
+    print("Output:", chatbot_final_output)
     return {
         "object": "chat.completion",
         "choices": [
@@ -105,4 +106,4 @@ def completion():
     }
 
 
-app.run(host="0.0.0.0", port=8000)
+app.run(host="0.0.0.0", port=1234)
