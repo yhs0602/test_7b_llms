@@ -1,11 +1,16 @@
 import transformers
 
+device = "cuda"
+
 tokenizer = transformers.AutoTokenizer.from_pretrained("berkeley-nest/Starling-LM-7B-alpha")
 model = transformers.AutoModelForCausalLM.from_pretrained("berkeley-nest/Starling-LM-7B-alpha")
 
 
+# model.to(device) OOM
+
+
 def generate_response(prompt):
-    input_ids = tokenizer(prompt, return_tensors="pt").input_ids
+    input_ids = tokenizer(prompt, return_tensors="pt").input_ids  # .to(device)
     outputs = model.generate(
         input_ids,
         max_length=256,
