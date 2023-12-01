@@ -1,11 +1,13 @@
+import json
 import time
 import uuid
+from threading import Thread
 
 import torch
 from awq import AutoAWQForCausalLM
-from flask import Flask
+from flask import Flask, Response
 from flask import request
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, TextIteratorStreamer
 
 app = Flask(__name__)
 
@@ -44,41 +46,72 @@ def chat_completion():
     )
     token_count = encodeds.size(1)
     model_inputs = encodeds.to(device)
-    generated_ids = model.generate(
-        model_inputs,
-        do_sample=True,
-        max_new_tokens=512,
-        pad_token_id=tokenizer.pad_token_id,
-        eos_token_id=tokenizer.eos_token_id,
-    )
-    new_token_count = generated_ids.size(1)
-    decoded = tokenizer.batch_decode(generated_ids)
-    chatbot_output = decoded[0]
-    sayings = chatbot_output.split("<|end_of_turn|>")
-    sayings = [saying for saying in sayings if saying.strip()]
-    chatbot_final_output = sayings[-1]
-    chatbot_final_output = chatbot_final_output.replace(" GPT4 Correct Assistant: ", "")
-    del model_inputs
-    torch.cuda.empty_cache()
-    print("Output:", chatbot_final_output)
-    return {
-        "object": "chat.completion",
-        "choices": [
-            {
-                "finish_reason": "stop",
-                "index": 0,
-                "message": {"content": chatbot_final_output, "role": "Assistant"},
-            }
-        ],
-        "id": f"chatcmpl-{uuid.uuid4()}",
-        "created": time.time(),
-        "model": "TheBloke/Starling-LM-7B-alpha-AWQ",
-        "usage": {
-            "completion_tokens": new_token_count - token_count,
-            "prompt_tokens": token_count,
-            "total_tokens": new_token_count,
-        },
-    }
+
+    if stream:
+        print("Streaming")
+        streamer = TextIteratorStreamer(
+            tokenizer, skip_prompt=True, skip_special_tokens=True
+        )
+        generation_kwargs = dict(
+            streamer=streamer,
+            do_sample=True,
+            max_new_tokens=512,
+            pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id,
+        )
+        thread = Thread(
+            target=model.generate, args=(model_inputs,), kwargs=generation_kwargs
+        )
+        thread.start()
+
+        def stream_generator():
+            for x in streamer:
+                json_dict = {
+                    "choices": [{"delta": {"content": x, "role": "Assistant"}}]
+                }
+                yield f"data: {json.dumps(json_dict)}\n\n"
+
+        return Response(
+            stream_generator(), mimetype="text/event-stream"
+        )  # stream_generator()
+    else:
+        generated_ids = model.generate(
+            model_inputs,
+            do_sample=True,
+            max_new_tokens=512,
+            pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id,
+        )
+        new_token_count = generated_ids.size(1)
+        decoded = tokenizer.batch_decode(generated_ids)
+        chatbot_output = decoded[0]
+        sayings = chatbot_output.split("<|end_of_turn|>")
+        sayings = [saying for saying in sayings if saying.strip()]
+        chatbot_final_output = sayings[-1]
+        chatbot_final_output = chatbot_final_output.replace(
+            " GPT4 Correct Assistant: ", ""
+        )
+        del model_inputs
+        torch.cuda.empty_cache()
+        print("Output:", chatbot_final_output)
+        return {
+            "object": "chat.completion",
+            "choices": [
+                {
+                    "finish_reason": "stop",
+                    "index": 0,
+                    "message": {"content": chatbot_final_output, "role": "Assistant"},
+                }
+            ],
+            "id": f"chatcmpl-{uuid.uuid4()}",
+            "created": time.time(),
+            "model": "TheBloke/Starling-LM-7B-alpha-AWQ",
+            "usage": {
+                "completion_tokens": new_token_count - token_count,
+                "prompt_tokens": token_count,
+                "total_tokens": new_token_count,
+            },
+        }
 
 
 # text completion
@@ -106,4 +139,4 @@ def completion():
     }
 
 
-app.run(host="0.0.0.0", port=1234)
+app.run(host="0.0.0.0", port=1234, threaded=True)
