@@ -40,7 +40,7 @@ def chat_completion():
     # "num_retries": 2,
     # "request_timeout": 10
     messages = data["messages"]
-    stream = data["stream"]
+    stream = data.get("stream", False)
     encodeds = tokenizer.apply_chat_template(
         messages, return_tensors="pt", add_generation_prompt=True
     )
